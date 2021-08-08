@@ -1,2 +1,2 @@
-# SimpleMinesweeper_React
+# Minesweeper
 Created with CodeSandbox
