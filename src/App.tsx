@@ -222,19 +222,22 @@ function reducerHandler(state, action) {
     case "start":
       return {
         ...state,
-        hasStarted: true
+        hasStarted: true,
+        hasWon: false
       };
     case "resetGame":
       return {
         ...state,
         hasStarted: true,
-        gameStopped: true
+        gameStopped: true,
+        hasWon: false
       };
     case "reset":
       return {
         ...state,
         hasStarted: true,
-        gameStopped: false
+        gameStopped: false,
+        hasWon: false
       };
     case "gameWon":
       return {
