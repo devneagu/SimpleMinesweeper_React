@@ -2,26 +2,27 @@ import { useEffect, useReducer, useState } from "react";
 import "./styles.css";
 import styled from "styled-components";
 
-const Game = styled.div`
-  position: relative;
-  min-height: 100vh;
-`;
-const Modal = styled.div`
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #de1a1a;
-  padding: 40px;
-  border-radius: 20px;
-  color: white;
-  text-transform: uppercase;
-  font-weight: 900;
-  font-family: sans-serif;
-  letter-spacing: 2px;
-  font-size: 1.5em;
-`;
+document.body.style.background = "#1f1b18";
 
+function countAll(state) {
+  var countBomb = 0;
+  var countRemining = 0;
+  for (var i = 0; i < state.game.row; i++) {
+    for (var j = 0; j < state.game.column; j++) {
+      if (state.matrix[i][j].isBomb) {
+        countBomb += 1;
+        continue;
+      }
+      if (state.matrix[i][j].isDisabled) {
+        countRemining += 1;
+      }
+    }
+  }
+  return {
+    countBomb,
+    countRemining
+  };
+}
 function countMines(state, i, j) {
   var rows = state.game.row;
   var columns = state.game.column;
@@ -76,30 +77,6 @@ function echo(state, dispatch, i, j) {
     }
   }
 }
-const Block = styled.div`
-  border-radius: 50px;
-  background: linear-gradient(145deg, #f8fbff, #d1d4de);
-  box-shadow: 20px 20px 60px #acaeb7, -20px -20px 60px #ffffff;
-  width: 30px;
-  height: 30px;
-  border: 1px solid white;
-  display: inline-block;
-  position: relative;
-  &.disabled {
-    background: #acbed8;
-  }
-  &#bomb {
-    background: linear-gradient(145deg, #f8fbff, #d1d4de);
-    /* background: #de1a1a !important; */
-  }
-`;
-const BlockText = styled.span`
-  position: absolute;
-  color: white;
-  transform: translate(-50%, -50%);
-  top: 50%;
-  left: 50%;
-`;
 
 function MinesweeperBlock() {}
 
@@ -107,9 +84,9 @@ function matrixReducer(state, action) {
   switch (action.type) {
     case "start":
       var matrix = [];
-      for (var i = 0; i < state.game.column; i++) {
+      for (var i = 0; i < state.game.row; i++) {
         matrix[i] = [];
-        for (var j = 0; j < state.game.row; j++) {
+        for (var j = 0; j < state.game.column; j++) {
           matrix[i][j] = { isDisabled: false, isBomb: false, value: undefined };
         }
       }
@@ -126,10 +103,11 @@ function matrixReducer(state, action) {
     case "addBombs":
       var matrix = state.matrix;
       var n = state.numberOfBombs;
+
       var count = 0;
       while (count < n) {
-        var i = Math.floor(Math.random() * state.game.row);
-        var j = Math.floor(Math.random() * state.game.column);
+        let i = Math.floor(Math.random() * state.game.row);
+        let j = Math.floor(Math.random() * state.game.column);
 
         if (matrix[i][j].isBomb) continue;
 
@@ -146,7 +124,6 @@ function matrixReducer(state, action) {
         render: !state.render
       };
     case "activeNumber":
-      console.log(action.value);
       var matrix = state.matrix;
       matrix[action.value.i][action.value.j].value = action.value.mineCount;
       return {
@@ -181,9 +158,8 @@ function MinesweeperGame({ gameDispatch, game }) {
   }, []);
 
   function clickHandlerBox(i, j) {
+    if (game.gameStopped) return;
     if (matrix.matrix[i][j].isBomb) {
-      console.log("you lost");
-
       var allBombs = document.querySelectorAll("#bomb");
       allBombs.forEach((btnEl) => {
         btnEl.style.background = "black";
@@ -193,8 +169,24 @@ function MinesweeperGame({ gameDispatch, game }) {
       return;
     }
     echo(matrix, dispatch, i, j);
+    var blocks = countAll(matrix);
+    console.log(blocks);
+    if (game.row * game.column - blocks.countBomb === blocks.countRemining) {
+      gameDispatch({ type: "gameWon" });
+      return;
+    }
   }
   const renderElements = () => {
+    let widthScreen = window.innerWidth * 0.75; //remove 20% from the margin
+    let widthBox = widthScreen / game.column;
+    widthBox = widthBox * 0.84; //remove margins from box
+    widthBox = (window.innerWidth * 0.75) / widthBox / 1.8; //transform from pixel to width
+    let margin = widthBox * 0.08;
+    let boxShadow = widthBox * 0.055;
+    let fontSize = widthBox / 2;
+
+    let unit = "vw";
+
     return (
       <div>
         {matrix.matrix.map((row, i) => (
@@ -202,8 +194,17 @@ function MinesweeperGame({ gameDispatch, game }) {
             {row.map((col, j) => (
               <Block
                 id={`${col.isBomb ? "bomb" : ""}`}
-                className={`${col.isDisabled ? "disabled" : ""}`}
+                className={`no-${col.value !== undefined ? col.value : ""} ${
+                  col.isDisabled ? "disabled" : ""
+                }`}
                 onClick={() => clickHandlerBox(i, j)}
+                style={{
+                  height: widthBox + unit,
+                  width: widthBox + unit,
+                  margin: margin + unit,
+                  fontSize: fontSize + unit,
+                  boxShadow: `${boxShadow}px ${boxShadow}px ${2 * boxShadow}px `
+                }}
                 key={j}
               >
                 <BlockText>{col.value}</BlockText>
@@ -214,13 +215,11 @@ function MinesweeperGame({ gameDispatch, game }) {
       </div>
     );
   };
-  console.log(matrix);
   return <>{matrix.render && renderElements()}</>;
 }
 function reducerHandler(state, action) {
   switch (action.type) {
     case "start":
-      console.log("Start the game");
       return {
         ...state,
         hasStarted: true
@@ -237,6 +236,13 @@ function reducerHandler(state, action) {
         hasStarted: true,
         gameStopped: false
       };
+    case "gameWon":
+      return {
+        ...state,
+        hasStarted: true,
+        gameStopped: true,
+        hasWon: true
+      };
     default:
       return state;
   }
@@ -244,11 +250,13 @@ function reducerHandler(state, action) {
 
 function Minesweeper() {
   const [restart, setRestart] = useState(false);
+
   const [game, dispatch] = useReducer(reducerHandler, {
-    row: 20,
-    column: 20,
+    row: 6,
+    column: 10,
     gameStopped: false,
-    hasStarted: false
+    hasStarted: false,
+    hasWon: false
   });
   useEffect(() => {
     if (restart === true) {
@@ -259,24 +267,93 @@ function Minesweeper() {
   if (restart === true) {
     return <p>Loading...</p>;
   }
+
   return (
-    <Game>
-      {!game.hasStarted && !game.gameStopped && (
-        <button onClick={() => dispatch({ type: "start" })}>Start Game</button>
-      )}
-      {game.hasStarted && (
-        <MinesweeperGame game={game} gameDispatch={dispatch} />
-      )}
-      {game.gameStopped && (
-        <Modal>
-          <p>You've Lost!</p>
-          <button onClick={() => setRestart(true)}>Play again</button>
-        </Modal>
-      )}
-    </Game>
+    <>
+      <Game>
+        {!game.hasStarted && !game.gameStopped && (
+          <>
+            <ButtonPlay onClick={() => dispatch({ type: "start" })}>
+              Start Game
+            </ButtonPlay>
+            <p style={{ color: "white", fontSize: "2em" }}>
+              For a better Experience use Landscape Mode
+            </p>
+          </>
+        )}
+        {game.hasStarted && (
+          <MinesweeperGame game={game} gameDispatch={dispatch} />
+        )}
+        {game.gameStopped && (
+          <Modal className={`${game.hasWon === true ? "gameWon" : "gameLost"}`}>
+            {!game.hasWon && <p>YOU LOST :(</p>}
+            {game.hasWon && <p>YOU WON :)</p>}
+            <button onClick={() => setRestart(true)}>Play again</button>
+          </Modal>
+        )}
+      </Game>
+    </>
   );
 }
 
 export default function App() {
   return <Minesweeper />;
 }
+const ButtonPlay = styled.button`
+  font-size: 3em;
+`;
+const Block = styled.div`
+  border-radius: 23%;
+  background: linear-gradient(145deg, #171412, #27221e);
+  box-shadow: inset 9.01px 9.01px 15px #151311,
+    inset -9.01px -9.01px 15px #29231f;
+
+  display: inline-block;
+  position: relative;
+  transition: 0.2s;
+  font-weight: 900;
+  font-size: 1.2em;
+  &.disabled {
+    background: linear-gradient(145deg, #ff8952, #a75332);
+    box-shadow: 6.31px 6.31px 13px #c8633b, -6.31px -6.31px 13px #f47949;
+  }
+  &#bomb {
+    /* background: yellow; */
+    /* background: #de1a1a !important; */
+  }
+`;
+const BlockText = styled.span`
+  position: absolute;
+  color: white;
+  transform: translate(-50%, -50%);
+  top: 50%;
+  left: 50%;
+`;
+const Game = styled.div`
+  min-width: 320px;
+  position: relative;
+  width: 80%;
+  margin: 0 auto;
+  height: 100%;
+`;
+const Modal = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  border-radius: 20px;
+  color: white;
+  text-transform: uppercase;
+  font-weight: 900;
+  font-family: sans-serif;
+  letter-spacing: 2px;
+  font-size: 2.5em;
+  text-align: center;
+  &.gameWon {
+    background: green;
+  }
+  &.gameLost {
+    background: #de1a1a;
+  }
+`;

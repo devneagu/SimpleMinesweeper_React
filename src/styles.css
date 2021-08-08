@@ -1,4 +1,18 @@
-.App {
-  font-family: sans-serif;
-  text-align: center;
+body {
+  font-family: "system-ui";
+}
+
+.no-1 span {
+  color: #ffffea;
+}
+.no-2 span {
+  color: #bdf772;
+}
+
+.no-3 span {
+  color: #cfcbff;
+}
+
+.no-4 span {
+  color: #792359;
 }
